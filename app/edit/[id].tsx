@@ -1,112 +1,143 @@
-// edit/[id].tsx
-
-import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, TextInput, Button, StyleSheet, Text, Alert, TouchableOpacity } from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import asyncStorage from "@/utils/AsyncStorage";
 import { ReminderType } from "@/constants/types";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
 
 const EditReminderScreen = () => {
-  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [isStartDatePickerVisible, setStartDatePickerVisibility] = useState(false);
+  const [isEndDatePickerVisible, setEndDatePickerVisibility] = useState(false);
 
   useEffect(() => {
-    const getData = async () => {
-      const reminders = (await asyncStorage.getItem("reminders")) as ReminderType[] || [];
-      const reminder = reminders.find(r => r.id === Number(id));
+    const getReminder = async () => {
+      if (!id) return; // Handle case where id is undefined
+
+      const reminders = (await asyncStorage.getItem("reminders")) as ReminderType[];
+      const reminder = reminders.find((r) => r.id === parseFloat(id));
       if (reminder) {
-        setTitle(reminder.title);
-        setNotes(reminder.notes || "");
-        setStartDate(reminder.startDate ? new Date(reminder.startDate) : undefined);
-        setEndDate(reminder.endDate ? new Date(reminder.endDate) : undefined);
+        setTitle(reminder.title ?? ""); // Default to empty string if undefined
+        setNotes(reminder.notes ?? ""); // Default to empty string if undefined
+        setStartDate(reminder.startDate ? new Date(reminder.startDate) : null); // Default to null if undefined
+        setEndDate(reminder.endDate ? new Date(reminder.endDate) : null); // Default to null if undefined
       }
     };
-    if (id) {
-      getData();
-    }
+    getReminder();
   }, [id]);
 
-  const editReminder = async () => {
-    const reminders = (await asyncStorage.getItem("reminders")) as ReminderType[] || [];
-    const reminderId = Number(id);
-    const newReminders: ReminderType[] = reminders.map(reminder => {
-      if (reminder.id === reminderId) {
-        return { ...reminder, title, notes, startDate: startDate?.toISOString(), endDate: endDate?.toISOString() };
-      }
-      return reminder;
-    });
-    await asyncStorage.setItem("reminders", newReminders);
+  const showStartDatePicker = () => {
+    setStartDatePickerVisibility(true);
+  };
+
+  const hideStartDatePicker = () => {
+    setStartDatePickerVisibility(false);
+  };
+
+  const handleConfirmStartDate = (date: Date) => {
+    setStartDate(date);
+    hideStartDatePicker();
+  };
+
+  const showEndDatePicker = () => {
+    setEndDatePickerVisibility(true);
+  };
+
+  const hideEndDatePicker = () => {
+    setEndDatePickerVisibility(false);
+  };
+
+  const handleConfirmEndDate = (date: Date) => {
+    setEndDate(date);
+    hideEndDatePicker();
+  };
+
+  const handleUpdateReminder = async () => {
+    if (!title.trim()) {
+      Alert.alert("Validation Error", "Title is required to update the reminder.");
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      Alert.alert("Validation Error", "Both start and end dates are required.");
+      return;
+    }
+
+    const currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0); // Set to start of the day for comparison
+
+    if (startDate < currentDate) {
+      Alert.alert("Validation Error", "Start date cannot be in the past.");
+      return;
+    }
+
+    if (endDate <= startDate) {
+      Alert.alert("Validation Error", "End date must be greater than start date.");
+      return;
+    }
+
+    const updatedReminder: ReminderType = {
+      id: parseFloat(id!), // Use non-null assertion since we check if id is defined
+      title,
+      notes,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    };
+
+    const reminders = (await asyncStorage.getItem("reminders")) as ReminderType[];
+    const updatedReminders = reminders.map((r) =>
+      r.id === parseFloat(id!) ? updatedReminder : r // Use non-null assertion
+    );
+
+    await asyncStorage.setItem("reminders", updatedReminders);
     router.push("/");
-  };
-
-  const showStartDatePickerModal = () => {
-    setShowStartDatePicker(true);
-    setShowEndDatePicker(false); // Close end date picker if open
-  };
-
-  const showEndDatePickerModal = () => {
-    setShowEndDatePicker(true);
-    setShowStartDatePicker(false); // Close start date picker if open
-  };
-
-  const handleStartDateChange = (event: any, selectedDate: Date | undefined) => {
-    setShowStartDatePicker(false);
-    if (selectedDate) {
-      setStartDate(selectedDate);
-    }
-  };
-
-  const handleEndDateChange = (event: any, selectedDate: Date | undefined) => {
-    setShowEndDatePicker(false);
-    if (selectedDate) {
-      setEndDate(selectedDate);
-    }
   };
 
   return (
     <View style={styles.container}>
       <TextInput
+        style={styles.input}
         placeholder="Title"
         value={title}
         onChangeText={setTitle}
-        style={styles.textInput}
       />
       <TextInput
+        style={styles.input}
         placeholder="Notes"
         value={notes}
         onChangeText={setNotes}
-        style={styles.textInput}
       />
-      <TouchableOpacity onPress={showStartDatePickerModal} style={styles.dateButton}>
-        <Text>Select Start Date</Text>
+      <TouchableOpacity onPress={showStartDatePicker} style={styles.datePickerButton}>
+        <Text style={styles.datePickerButtonText}>
+          {startDate ? startDate.toDateString() : "Choose Start Date"}
+        </Text>
+        <Ionicons name="calendar" size={24} color="black" />
       </TouchableOpacity>
-      {showStartDatePicker && (
-        <DateTimePicker
-          value={startDate || new Date()}
-          mode="date"
-          display="default"
-          onChange={handleStartDateChange}
-        />
-      )}
-      <TouchableOpacity onPress={showEndDatePickerModal} style={styles.dateButton}>
-        <Text>Select End Date</Text>
+      <DateTimePickerModal
+        isVisible={isStartDatePickerVisible}
+        mode="date"
+        onConfirm={handleConfirmStartDate}
+        onCancel={hideStartDatePicker}
+      />
+      <TouchableOpacity onPress={showEndDatePicker} style={styles.datePickerButton}>
+        <Text style={styles.datePickerButtonText}>
+          {endDate ? endDate.toDateString() : "Choose End Date"}
+        </Text>
+        <Ionicons name="calendar" size={24} color="black" />
       </TouchableOpacity>
-      {showEndDatePicker && (
-        <DateTimePicker
-          value={endDate || new Date()}
-          mode="date"
-          display="default"
-          onChange={handleEndDateChange}
-        />
-      )}
-      <Button title="Edit Reminder" onPress={editReminder} />
+      <DateTimePickerModal
+        isVisible={isEndDatePickerVisible}
+        mode="date"
+        onConfirm={handleConfirmEndDate}
+        onCancel={hideEndDatePicker}
+      />
+      <Button title="Update Reminder" onPress={handleUpdateReminder} />
     </View>
   );
 };
@@ -115,19 +146,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: "#f8f9fa",
   },
-  textInput: {
-    height: 40,
-    borderColor: "gray",
+  input: {
+    height: 50,
+    borderColor: "#ced4da",
     borderWidth: 1,
-    marginBottom: 10,
-    padding: 10,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 20,
   },
-  dateButton: {
+  datePickerButton: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#DDDDDD",
+    justifyContent: "space-between",
+    backgroundColor: "#e9ecef",
+    borderRadius: 8,
     padding: 10,
-    marginBottom: 10,
+    marginBottom: 20,
+  },
+  datePickerButtonText: {
+    fontSize: 16,
   },
 });
 

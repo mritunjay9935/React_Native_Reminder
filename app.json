@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "task-reminder",
-    "slug": "task-reminder",
+    "slug": "snack-c1e84b30-25cd-4ca0-930f-a12a16ff8249",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.amit.reminder"
+      "bundleIdentifier": "com.mritunjay.reminder"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
       ],
-      "package": "com.amit.reminder"
+      "package": "com.mritunjay.reminder"
     },
     "web": {
       "bundler": "metro",
@@ -43,9 +43,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "034d8a4c-429a-4a01-bb24-7b7af0793154"
+        "projectId": "888a3118-a3e3-4594-960a-191222ef90c9"
       }
     },
-    "owner": "riteshf"
+    "owner": "mritunjay9935"
   }
 }
